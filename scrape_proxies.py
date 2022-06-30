@@ -28,8 +28,10 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.support import expected_conditions as EC
 
 def browser():
+	# Get random user agent
 	ua = UserAgent()
 	user_agent = ua.random
+	# Instantiate undetected_chromedriver with options
 	options = uc.ChromeOptions()
 	options.add_argument("--headless")
 	options.add_argument(f"user-agent={user_agent}")
@@ -39,43 +41,36 @@ def browser():
 def scrape_proxies():
 	url = "https://spys.one/en/anonymous-proxy-list/"
 
+	# Instantiate driver
 	driver = browser()
 	driver.get(url)
-
-	#time.sleep(5)
-
-	#select_show = Select(driver.find_element(By.ID, "xpp"))
-	#select_show.select_by_visible_text("500")
-
 	time.sleep(5)
 
+	# Select 500 entries
+	select_show = Select(driver.find_element(By.ID, "xpp"))
+	select_show.select_by_visible_text("500")
+	time.sleep(5)
+
+	# Select HTTP type
 	select_type = Select(driver.find_element(By.ID, "xf5"))
 	select_type.select_by_visible_text("HTTP")
-
 	time.sleep(5)
 
+	# Get rows of table
 	rows = driver.find_elements(By.TAG_NAME, "tr")
 
-	#for row in rows:
-	#	print(colored("PRINTING ROW TEXT", "green"))
-	#	print(row.text)
-
-	#rows = tables[3].find_elements(By.TAG_NAME, "tr")
+	# Filter out unnecessary rows
 	rows = rows[9:len(rows)-4:2]
-	#print("\nPRINTING ROW TEXT\n".join([row.text for row in rows]))
 
+	# Loop through rows of table
 	ip_addresses = []
 	for row in rows:
 		columns = row.find_elements(By.TAG_NAME, "td")
-		#print(columns[0].text.strip())
-		#print("\n".join([column.text for column in columns]))
-		#for column in columns:
-		#	print(column.text)
 		data = {"Proxy address":"", "Proxy type":"", "Uptime":""}
+		# Check proxy type and add to dictionary accordingly
 		if "HTTPS" in columns[1].text.strip():
 			data["Proxy address"] = columns[0].text.strip()
 			data["Proxy type"] = "https"
-			#print(columns[7].text.strip())
 			if "new" not in columns[8].text:
 				data["Uptime"] = columns[8].text.strip().split("%")[0]
 			else:
@@ -83,18 +78,19 @@ def scrape_proxies():
 		else:
 			data["Proxy address"] = columns[0].text.strip()
 			data["Proxy type"] = "http"
-			#print(columns[7].text.strip())
 			if "new" not in columns[8].text:
 				data["Uptime"] = columns[8].text.strip().split("%")[0]
 			else:
 				data["Uptime"] = "0"
 		ip_addresses.append(data)
 
-	#print(ip_addresses)
-
+	# Quit the chromedriver headless browser
 	driver.quit()
 
+	# Add IP addresses to pandas DataFrame
 	df = pd.DataFrame(ip_addresses)
+
+	# Filter out proxies with uptime < 20%
 	df["Uptime"] = df["Uptime"].astype("int")
 	df = df[df["Uptime"] >= 20]
 
@@ -102,7 +98,8 @@ def scrape_proxies():
 	print(df.dtypes)
 	print(df.head())
 
-	df.to_csv("spys-proxy-list-30-uptime-20.csv")
+	# Save to CSV file
+	df.to_csv("spys-proxy-list-500-uptime-20.csv")
 
 def get_random_proxy():
 	ip_addresses = scrape_proxies()
